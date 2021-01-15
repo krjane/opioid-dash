@@ -1,0 +1,119 @@
+---
+title: "Lincoln Behavioral Private Training Graphs (Wayne County)"
+output: html_notebook
+---
+Load data
+```{r}
+library(lubridate)
+library(bbplot)
+
+dat <- full_dataset %>% 
+  filter(county == "Wayne") %>% 
+  mutate(year = year(date))
+```
+
+```{r}
+ggplot(dat %>% 
+         filter(type == "naloxone")) + 
+  geom_bar(aes(factor(year))) + 
+  labs(title = "Wayne County EMS Naloxone Administrations",
+       caption = "Source: Michigan EMS Information System (MI-EMSIS)")+
+  bbc_style()+
+    theme(plot.title = element_text(size = 16),
+        plot.caption = element_text(size = 12))
+```
+
+```{r}
+ggplot(dat %>% 
+         filter(type == "naloxone")) + 
+  geom_bar(aes(factor(year))) + 
+  labs(title = "Wayne County Suspected Opioid Overdose Deaths",
+       caption = "Source: Michigan EMS Information System (MI-EMSIS)")+
+  bbc_style()+
+    theme(plot.title = element_text(size = 16),
+        plot.caption = element_text(size = 12))
+```
+
+```{r}
+cdc_wonder <- read_excel("data/processed/cdc_wonder.xlsx") %>% 
+  group_by(year) %>% 
+  mutate(total = sum(Deaths)) %>% 
+  filter(mcod_code == "T40.1") %>% 
+  ungroup() %>% 
+  add_row(year = 2020,total = 936) %>%
+  mutate(year_short = paste0("'", substr(year,3,4)))
+
+ggplot(cdc_wonder)+
+  geom_col(aes(year,total), fill = "#4682B4")+
+  labs(title = "Suspected Opioid Overdose Deaths in Wayne County",
+       caption = "Source: CDC Wonder (1999-2019), Michigan EMS Information System (2020)")+
+  bbc_style()+
+    theme(
+        plot.caption = element_text(size = 7))
+```
+
+
+```{r}
+dats <- full_dataset %>% 
+  filter(county == "Wayne", type == "naloxone") %>% 
+  mutate(year = year(date)) %>% 
+  count(year)
+```
+
+```{r}
+sum_dat <- full_dataset %>% 
+  filter(county == "Wayne", type == "naloxone") %>% 
+  mutate(year = year(date)) %>% 
+  mutate(gg_date = as.POSIXct(paste0("2020-", format(date,format = "%m-%d")))) %>% 
+  group_by(year) %>% 
+  count(gg_date) %>% 
+  mutate(sum = cumsum(n))
+
+sum_point <- sum_dat %>% 
+  group_by(year) %>% 
+  top_n(1)
+
+ggplot() + 
+  
+  geom_smooth(data = sum_dat, 
+              aes(x= gg_date, 
+                  y = sum, 
+                  color = factor(year)), method = "gam",
+              size = 3)+
+  
+  geom_point(data = sum_point,
+             aes(x = gg_date,
+                 y = sum,
+                 color = factor(year)),
+             size = 7)+
+  
+  # geom_label(data = sum_point %>%filter(year == "2020"), 
+  #            aes(x= gg_date-10, y = sum * 1.3, label = paste("...",sum,"times.")),
+  #            fill = NA, 
+  #            label.size = NA,
+  #            family = "Helvetica",
+  #            size = 6)+
+  
+  scale_x_datetime(date_labels = "%b", 
+                   breaks = seq(as.POSIXct("2020-01-15"), 
+                                as.POSIXct("2020-12-15"), by = "1 month"))+
+  scale_color_manual(values = c("#d3e6ed","#74a4b3", "#3188a3","#d8a108"))+
+  bbc_style()+ 
+  scale_y_continuous(position = "right", limits = c(0,5000))+
+  labs(title = paste0("Wayne EMS Naloxone Administrations"),
+       caption = "Source: Michigan EMS Information System (MI-EMSIS)")+
+  theme(axis.ticks.x = element_line(colour = "#cbcbcb"), 
+        axis.ticks.length =  unit(0.26, "cm"),
+        axis.text = element_text(size = 18),
+        plot.subtitle = element_text(size = 18),
+        plot.title = element_text(size = 26),
+        legend.text = element_text(size = 14),
+        legend.position = "top",
+        plot.caption = element_text(size = 12))+
+  guides(color=guide_legend(override.aes=list(fill=NA)))
+```
+
+```{r}
+ggplot(sum_point) +
+  geom_col(aes(year,sum))
+```

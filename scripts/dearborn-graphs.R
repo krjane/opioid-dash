@@ -2,7 +2,7 @@ library(tidyverse)
 library(lubridate)
 library(bbplot)
 
-full_dataset <- read_csv("data/full_dataset.csv") %>% 
+full_dataset <- read_csv("processed/data/full_dataset.csv") %>% 
   filter(str_detect(city,"^Dearborn")) %>% 
   mutate(month = month(date), year = year(date)) %>% 
   filter(year == 2020 & type == "naloxone" & month %in% 0:8)
